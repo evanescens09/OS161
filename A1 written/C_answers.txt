@@ -1,0 +1,52 @@
+##########################################    
+#     CSCC69H3 Summer 2012 Assignment 1  #
+#     Types, Casting, Pointers, Macros   #
+#     Kevin Hon Man Chan                 #
+#     997385752                          #
+#     chanke25                           #
+#     kevinhm.chan@mail.utoronto.ca      #
+##########################################
+
+#------------#
+# Question 1 #
+#------------#
+Strlen returns an unsigned integer, so the length of the empty string is 0
+and 0 - 1 (line 12) results in an overflow, causing the loop to read far past 
+the string causing a segmentation fault.
+
+#------------#
+# Question 2 #
+#------------#
+a) int **p; p is a pointer to a pointer to an int
+
+b) int p; p is an integer
+
+c) struct thread p; p is a struct
+
+d) char *p; p is a pointer to a char
+
+e) int*(int, char **); p is a pointer to a function that takes an int and a pointer to a pointer to a char
+
+f) u_int16_t p; p is an unsigned short
+
+g) int p; p is an int that is returned from printf
+
+h) double p; comma operator evaluates first operand, discards, then evaluates second operand and returns 
+
+i) u_int32_t p; p is an unsigned int
+
+j) u_int32_t p; p is a pointer to an unsigned int
+
+
+#------------#
+# Question 3 #
+#------------#
+a) This macro performs bitwise & operator on a pointer and a STACK_MASK defined in an earlier macro.
+It then checks for equality between the result of the bitwise & operation.
+
+b) Macro concatenates syscall names with numbers by concatenating the two tokens before expanding the macro.
+
+c) This macro defines _VOP, that evaluates its first operand, discards, then evaluates the second operand
+and returns.  In this case, it evaluates the function vnode_check which takes a struct and a 'stringified'
+char, and then evaluates and returns the vop_ concatenated with the stringified symbol. VOP_OPEN is defined
+as calling _VOP on its arguments.  
