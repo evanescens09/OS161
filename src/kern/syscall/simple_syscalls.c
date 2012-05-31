@@ -23,8 +23,8 @@ int sys_printchar(char c)
 		return i;	
 	}
 	else {
-		DEBUG(DB_SYSCALL,"Error in sys_printchar(), error code = %d\n", EFAULT);
-		return EFAULT;
+		DEBUG(DB_SYSCALL,"Error in sys_printchar(), error code = %d\n", EIO);
+		return EIO;
 	}
 }
 
