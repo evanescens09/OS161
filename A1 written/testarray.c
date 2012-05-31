@@ -1,7 +1,5 @@
 /*
-Kevin Hon Man Chan
-997385752 :: chanke25
-CSCC69S12 Assignment 1
+CSCC69S12 Assignment 1 - Potion Brewing
 */
 
 #include <stdio.h>
