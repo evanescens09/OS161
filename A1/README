@@ -1,0 +1,4 @@
+CSCC69 Assignment 1
+Assignment specification:
+The goals of this assignment are to remind you of some of the intricacies of programming in C, to familiarize you with the submission system for this course, and to introduce you to OS/161, the operating system simulator that we will be using for this course.
+In this section, you'll make a typical modification to OS/161: adding new system calls. You'll also learn about testing and debugging system calls using the files in testbin and the DEBUG macro.
