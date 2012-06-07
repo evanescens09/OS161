@@ -1,6 +1,6 @@
 ##########################################    
 #     CSCC69H3 Summer 2012 Assignment 2  #
-#     Code Reading Questions		 	 #
+#     Code Reading Questions		 	       #
 #     Geoff Lee - leegeof1               #
 #     Helena Yuhang - zhang138           #
 #     Kevin Chan - chanke25              #
