@@ -1,0 +1,334 @@
+<!--#include file="pagestart.txt"-->
+    <title>CSCH369: Assignment 2, Processes</title>
+</head>
+
+<body>
+    <div class="title">
+        <h1>Assignment 2: Processes</h1>
+</div>
+
+<div class="content">
+<p><b>Due</b>: Electronically, by 11 p.m. on Wednesday, June 20th, 2012</p>
+
+<p>If you want to work in a different group, or worked alone and now want to work with someone, please contact your instructor as soon as possible.</p>
+
+<h2>Introduction</h2>
+
+<p>In this assignment, you will extend OS/161's thread system and will implement several
+system calls to allow OS/161 to support more interesting user programs. To complete this assignment, you will need to become familiar with the OS/161
+thread code. (OS/161's threads are "processes".) The thread system provides interrupts, control functions, and
+semaphores. You will be extending the thread system to provide additional,
+higher-level functions found in most thread libraries and will use that functionality to implement the process management system calls <a href="getpid.pdf">getpid</a>, <a href="waitpid.pdf">waitpid</a>, <a href="fork.pdf">fork</a>.
+<h2>Beginning Your Assignment</h2>
+
+<h3>Documenting Design Decisions</h3>
+
+<p>As you are working with a partner, we recommend documenting your progress carefully: how you will identify jobs which have been completed (or which remain), specific problems you have encountered, and discoveries/insights you've made. A simple text file may suffice your work.</p>
+
+<p>We do not need to see all of your notes, but you must submit a text file documenting your design process. Before implementing any part of this assignment, think carefully about how OS/161 (and, in particular, the thread system) is structured. In a file named <tt>design.txt</tt> located at the root of the <tt>a2</tt> source code, succinctly document where and, at a high level, how you will implement each piece of functionality. In particular, note the structures you will need access and modify, the functions are available for you to use, and possible errors or complications that you will need to handle. This document will help us evaluate your code when we mark it and, if you are unable to complete part of the assignment, it will allow us to provide partial credit.</p>
+
+<h3>Building the Starter Code</h3>
+
+<p>Your <tt>a2</tt> folder contain the starter code for this assignment. You probably want to copy some of the changes you made in Assignment 1 into the starter code. For example, you will want to modify your prompt in <tt>menu.c</tt> again, and if you made any changes to the DEBUG macros, you should import them into the Assignment 2 starter code. In particular, you should check <tt>menu.c</tt> and <tt>thread.c</tt> for possible additions.</p>
+
+<p>Since your source code has been moved, you will need to re-run <tt>"./configure --ostree=`echo &lt;path-to-root&gt;`"</tt> in the <tt>a2/src</tt> directory . You will also need to reconfigure your kernel before you begin work on this assignment. The procedure for configuring a kernel is the same as in ASST1, except you will use the ASST2 configuration file.</p>
+
+<h3>Running the Simulator from the Command Line</h3>
+
+<p>The simulator allows you to run the kernel from the command line without
+waiting for the menu prompt. You may find it convenient to use this feature to
+automate some tests. To run the kernel from the command line, pass a string of
+commands as the second parameter. For example, to run the array test and then
+quit, type:</p>
+
+<pre>
+    sys161 kernel "at;q"
+</pre>
+
+<p>In particular, this will eliminate the unpredictable delay incurred by typing in a command. This delay could 
+	cause your program to behave differently, since <tt>thread_yield</tt> is called at random intervals to simulate a shared, interactive system.</p>
+
+<h2>Code Reading Questions: Threads, Processes, and Synchronization</h2>
+
+<p>Place the answers to the code reading questions in a text file called
+<tt>code-reading.txt</tt> in your <tt>a2</tt> directory. Please answer the questions using full sentences, and refer to the code (file and function) when appropriate</p>
+
+<blockquote> 
+  <ol>
+    <li>What happens to a thread when it exits (i.e., calls <tt>thread_exit()</tt> )? What about when it sleeps?</li>
+
+    <li>What function(s) handle(s) a context switch?</li>
+
+    <li>What events can directly cause a context switch?</li>
+
+    <li>How many thread states are there? What are they?</li>
+        
+    <li>What does it mean to turn interrupts off? How is this accomplished?
+    Why is it important to turn off interrupts in the thread subsystem
+    code?</li>
+
+    <li>What happens when a thread wakes up another thread? How does a
+    sleeping thread get to run again?</li>
+
+    <li>When and why is the "condition variable" in the <tt>pidinfo</tt> struct used?</li>
+
+    <li>Why do you need to hold a lock before waiting on a "condition variable"?</li>
+
+    <li>What are the ELF magic numbers?</li>
+
+    <li>What is the difference between UIO_USERISPACE and UIO_USERSPACE? When
+    should one use UIO_SYSSPACE instead?</li>
+
+    <li>Why can the <tt>struct uio</tt> that is used to read in a segment be
+    allocated on the stack in <tt>load_segment()</tt> (i.e., where does the
+    memory read actually go)?</li>
+
+    <li>In <tt>loadexec()</tt> and <tt>runprogram()</tt>, why is it important to call
+    <tt>vfs_close()</tt> before going to usermode?</li>
+
+    <li>What function forces the processor to switch into usermode? Is this
+    function machine dependent?</li>
+
+    <li>In what file are <tt>copyin</tt> and <tt>copyout</tt> defined?
+    <tt>memmove</tt>? Why can't <tt>copyin</tt> and <tt>copyout</tt> be
+    implemented as simply as <tt>memmove</tt>?</li>
+                
+  </ol> 
+</blockquote>
+
+<h2>Extending the Thread System</h2>
+
+<p>For this part of the assignment, you will extend the kernel thread
+subsystem to allow one thread to wait for another to exit. The starter code
+includes a simple thread id management system (see <tt>pid.c</tt> in
+<tt>src/kern/thread</tt> and <tt>pid.h</tt> in <tt>src/kern/include</tt>). The 
+system already allocates an identifier a (pid) whenever a new thread is created, but 
+none of the functions that allow programmers to access and use pids have been written.</p>
+
+<p>You should think of <tt>pid.c</tt> as implementing a <em>monitor</em> that
+controls access to the shared pid data structures. The externally-callable
+functions in <tt>pid.c</tt> are the monitor's entry points. All access to the
+pid data structures (including querying or modifying any fields) must be done
+through a function provided by <tt>pid.c</tt>. Stub functions for <tt>pid_detach</tt>,
+<tt>pid_join</tt>, and <tt>pid_exit</tt> have been provided 
+to get you started. You may add other functions if you find them useful.</p>
+
+<p>You must implement or modify the functions below. Since you are extending the thread subsystem, place any helper functions <tt>kern/thread/thread.c</tt> and add prototypes to <tt>kern/include/thread.h</tt>. Each of these functions will rely very heavily on <tt>pid.c</tt>.</p>
+
+<ul>
+  <li><b><tt>int thread_join(pid_t pid, int *status)</tt></b><br>
+                <tt>thread_join</tt> suspends the execution of the calling thread until the thread identified by <tt>pid</tt> terminates by calling <tt>thread_exit</tt><br>
+                <br>
+                If <tt>status</tt> is not NULL, the exit status of thread <tt>pid</tt> is stored in the location pointed to by <tt>status</tt>. The thread <tt>pid</tt> must be in the joinable state; it must not have been detached using <tt>thread_detach</tt>.<br>
+                <br>
+                When a joinable thread terminates, its thread descriptor (thread id) and exit status must be retained until another thread performs <tt>thread_join</tt> (or <tt>thread_detach</tt>) on it.<br>
+                <br>
+                Only the creator (parent) of a thread is allowed to call <tt>thread_join</tt> on it. Anything else returns an error.<br>
+                <br>
+                <b>Return Value:</b> On success the exit status of thread <tt>pid</tt> is stored in the location pointed to by <tt>status</tt>, and 0 is returned. On error, a non-zero error code is returned.<br>
+                <br>
+                <b>Errors:</b>
+
+                <ul> <li><b>ESRCH</b>: No thread could be found corresponding
+                to that specified by <tt>pid</tt>.</li>
+
+                    <li><b>EINVAL</b>: The thread has been detached.</li>
+
+                    <li><b>EINVAL</b>: The caller of <tt>thread_join</tt> is
+                    not the parent of the thread specified by
+                    <tt>pid</tt>.</li>
+
+                    <li><b>EINVAL</b>: The <tt>pid</tt> argument refers to the calling thread.</li>
+                </ul>
+                Once you have implemented <tt>thread_join</tt>, modify <tt>common_prog</tt> to join with
+                the thread it spawns and to print a message that provides its exit status or signal. This 
+                will make your shell wait for a process to terminate before it prints the next prompt. 
+               You will find the macros in <tt>kern/include/kern/wait.h</tt> helpful as you implement this 
+               section.
+            </li>
+
+            <li> <b><tt>int thread_detach(pid_t pid)</tt></b><br/>
+            
+             <tt>thread_detach</tt> puts the thread <tt>pid</tt> in the
+            detached state. This means that the thread descriptor and exit
+            status can be discarded immediately when <tt>pid</tt> terminates.
+            If <tt>pid</tt> has already exited when <tt>thread_detach</tt> is
+            called, the thread descriptor should be reclaimed as part of
+            handling <tt>thread_detach</tt>.<br/> <br/>
+            
+             When a thread exits, <tt>thread_detach</tt> should be called on
+            all of its children.<br> <br> <b>Return Value:</b> On success, 0
+            is returned. On error, a non-zero error code is returned.<br> <br>
+            <b>Errors:</b> 
+            
+            <ul>
+            
+             <li><b>ESRCH</b>: No thread could be found corresponding to that
+            specified by <tt>pid</tt>.</li>
+
+              <li><b>EINVAL</b>: The thread <tt>pid</tt> is already in
+              the detached state.</li>
+
+              <li><b>EINVAL</b>: The caller is not the parent of
+              <tt>pid</tt>.</li>
+              
+             </ul> 
+            </li> 
+        <li>Modify the implementation of thread_exit so
+        that the exitstatus is saved appropriately and so that the thread synchronizes correctly with any joining threads.</li>
+        
+        <li>Change the prototype and implementation of
+        thread_fork so that it returns (via pass by reference) a pid
+        rather than a pointer to the thread structure itself. If the
+        parent does not want to know the thread id (i.e., the last argument to
+        thread_fork is NULL), you should place the new thread in the detached
+        state immediately. (If the parent does not know the thread id, then it
+        will not be able to call thread_join for the new thread).<br /><br />
+        After you have modified fork, modify its arguments in <tt>kern/tests/waittest.c</tt>. Then, you
+        can use this test to check whether your implementations of wait and join are correct.</li>
+    </ul>
+
+        <h3>System Calls</h3>
+
+        <p>For this section, implement <tt>getpid</tt>, <tt>waitpid</tt>, <tt>fork</tt>, and (for bonus credit) <tt>execv</tt>.
+        It's crucial that your syscalls handle all error conditions gracefully
+        (i.e., without crashing OS/161) and return the correct value (in case
+        of success) or error code (in case of failure). Check the man pages
+        linked above to get a description of the system calls and the errors
+        they need to handle.</p>
+
+        <p>Recall that the file <tt>user/include/unistd.h</tt> contains the
+        user-level interface definition of the system calls that you will be
+        writing for OS/161. This interface is different from that of the kernel
+        functions that you will define to implement these calls (which are located in <tt>kern/include/syscall.h</tt>).
+        </p>
+            
+        <p>You
+        need to think about a variety of issues associated with implementing
+        system calls. Perhaps the most obvious one is: can two different
+        user-level processes find themselves running a system call at the same
+        time? Be sure to argue for or against this and explain your final
+        decision in the design document. Another issue is user input. Be very careful
+        to check for invalid arguments, and use the copy functions provided to copy 
+        data in and out of the user space.</p>
+
+        <p><b>getpid(), waitpid()</b></p>
+
+        <p>A pid, or process ID, is a unique number that identifies a process.
+        The implementation of <tt>getpid()</tt> should be straightforward,
+        assuming you have already taken care of allocating thread identifiers 
+        when a
+        new thread is created (since every user-level process executes in the
+        context of a single kernel thread).</p>
+
+        <p>Your <tt>waitpid()</tt> system call should map nicely to the
+        <tt>thread_join</tt> function in the kernel thread system.</p>
+
+        <p><b>fork(), execv()</b></p>
+
+        <p><tt>fork()</tt> is difficult to implement but rewarding. Along with <tt>execv()</tt>, <tt>fork</tt>
+        makes OS/161 a much more useful entity.</p>
+
+        <p><tt>fork()</tt> is the mechanism for creating new processes.
+        It should make a copy of the invoking process and make sure that the
+        parent and child processes each observe the correct return value (that
+        is, 0 for the child and the newly created pid for the parent). You
+        will want to think carefully through the design of <tt>fork()</tt>.
+        The core of the <tt>fork()</tt> system call will use the
+        <tt>thread_fork()</tt> function to create a new kernel thread. The
+        difficult part is starting the child process with the same state the
+        parent had at the time that it made the system call.</p>
+
+        <p>You will want to look at how a fresh process is initially started
+        by <tt>runprogram()</tt>, and how a process returns to userspace following a
+        system call. The child process has some characteristics of each when
+        it first goes to userlevel.</p>
+        
+        <p><tt>execv()</tt> is responsible for taking newly created processes and
+        making them execute something a new program. It replaces the existing
+        address space with a new one containing the code for the new
+        executable and then makes the thread runnable. (The code for <tt>execv</tt> will be very similar to the code already in <tt>kern/syscall/runprogram.c</tt>.) </p>
+
+        <p>Remember that this call is
+        coming out of userspace, into the kernel, and then returning back to
+        userspace. You must manage the memory that travels across these
+        boundaries very carefully -- including handling any arguments, which is the trickiest part.
+(How can you determine how much space you need to copy your arguments without inspecting them? You shouldn't inspect them without copying them in first!) For up to 10% bonus credit on the assignment, implement a version of exec that handles a maximum of 8 arguments of maximum length 128 characters. (These limits were chosen arbitrarily; don't read anything magical into them.)
+		</p>
+    
+        <p><tt>testbin</tt> includes a few test programs that you can use for <tt>fork</tt>. You should create new test programs in testbin for <tt>execv</tt>. The simplest test prints a message and then execs into a second program that prints a different message.</p>
+
+        <h4>Errors and Error Handling</h4>
+            
+        <p>The man pages in the OS/161 distribution contain a description of
+        the error return values that you must return. If there are conditions
+        that can happen that are not listed in the man page, return the most
+        appropriate error code from <tt>kern/errno.h</tt>. If none seem
+        particularly appropriate, consider adding a new one. If you're adding
+        an error code for a condition for which Unix has a standard error code
+        symbol, use the same symbol if possible. If not, feel free to make up
+        your own, but note that error codes should always begin with E, should
+        not be EOF, etc. Consult Unix man pages to learn about Unix error
+        codes; on Linux systems "man errno" will do the trick.</p>
+
+        <p>Note that if you add an error code to
+        <tt>kern/include/kern/errno.h</tt>, you need to add a
+        corresponding error message to the file
+        <tt>user/lib/libc/string/strerror.c</tt>.</p>
+
+        <p>Once again, discuss how you handle each of these system calls in
+        your design document. Make sure you identify where to find your code
+        modifications in the OS/161 source. To make life a bit easier for the
+        TA, please use the system call stubs (<tt>sys_getpid, sys_waitpid, 
+        sys_fork, and sys_execv</tt>) in <tt>kern/syscall/proc_syscalls.c</tt>.</p>
+        
+         <p><font color="red">Hint:</font> There is actually very little code
+        to write for the system calls. You will need to make some
+        modifications to existing functions, but not very much. You do need to
+        understand the path through the code, so that you know which code to
+        add.</p>
+
+<h2>Marking Guidelines</h2>
+
+<p>Your submission will be marked based on correctness, style and efficiency, and your ability to explain your design decisions:</p>
+
+<ol>
+  <li><b>Correctness</b> (50%): All of your thread system extensions and system calls should perform the specified work, return the correct return values and error codes, and handle error cases gracefully.</li>
+
+  <li><b>Style and Efficiency</b> (20%): Your code should be readable and well
+  structured. Functionality should be placed in the correct module and should 
+  not be duplicated.</li>
+  
+  <li><b>Design Document and Code Reading</b> (30%): The design document should
+  discuss all of the required topics in a clear, professional style. Avoid
+  unnecessary technical detail; your audience is a manager who does not need
+  specific information about your implementation -- just a high-level idea of
+  the trade-offs you have made. Grammar and composition count.</li>
+
+  <li><b><tt>execv()</tt></b> (+10%)</li>
+
+</ol>
+   
+<h2>Submission</h2>
+
+  <p>Submit your assignment and make sure to:
+  </p>
+
+  <ol>
+    <li>Review your code for good style and readability. 
+    <li>Verify that your code compiles without warnings. (Compiler 
+        warnings are your friends!)
+    <li>Proofread your design document and confirm that it addresses the 
+        requested topics.
+    <li>Check that all files are named correctly and that your submission is 
+        completely contained in the <tt>a2</tt> directory .
+    <li>Add the message "Assignment 2 Complete" to your final check-in to 
+        inform us that your assignment is ready for marking. (If you don't
+        include this message, we'll mark the last check-in, but adding this
+        message will help us complete the marking faster, since we will be
+        able to start before your grace days are exhausted.) The commit time
+        of your submission determines how many grace days are used.
+  </ol>
+</div> 
+    
+<!--#include file="pageend.txt"-->
