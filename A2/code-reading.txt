@@ -33,7 +33,9 @@ The awoken thread is put in the runnable queue by wchan_wakeone or wchan_wakeall
 The condition variable pi_exited is used when a thread exits in order to determine when the pidinfo struct can be freed.
 
 8) Why do you need to hold a lock before waiting on a "condition variable"?
-***IDERNOWHY***
+In the function we are de-allocating the process ID, effectively killing it. 
+The reason why we are locking the condition variable to false is that the condition variable won't be listening for
+an event to trigger a process that doesn't exist anymore.
 
 9) What are the ELF magic numbers?
 ELF magic numbers are made of sunshine and are used to uniquely identify filetypes without searching through complicated 
@@ -50,7 +52,9 @@ seem to do exactly the same thing) One should use UIO_SYSSPACE when we wish to c
 
 11) Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() 
 (i.e., where does the memory read actually go)?
-***IDERNOWHY***
+You're passing the uio's pointer into a function that type-sets it into a node,
+What's happening is that you are loading things in a chain that keeps inserting new processes in the front of the chain as it finishes
+loading the pre-existing processes.
 
 12) In loadexec() and runprogram(), why is it important to call vfs_close() before going to usermode?
 Because is the elf failed to load on line 92 of runprogram.c, the executable has already been loaded into t_addrspace,
@@ -62,4 +66,5 @@ actually does it.  This function is machine dependent because it sets up specifi
 
 14) In what file are copyin and copyout defined? memmove? Why can't copyin and copyout be implemented as simply as memmove?
 copyin and copyout are defined in kern/vm/copyinout.c, and memmove is defined in /common/libc/string/memmove.c.
-***IDERNOWHY***
+We don't need to use memmove because copyin and copyout already handle cases with overlapping memory regions and would be 
+redundant if we implemented it with memmove.
