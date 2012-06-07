@@ -1,0 +1,154 @@
+34d33
+< #include <kern/wait.h>
+42d40
+< #include <pid.h>
+105a104,129
+> 	if (result) {
+> 		kprintf("Running program %s failed: %s\n", args[0],
+> 			strerror(result));
+> 		return;
+> 	}
+> 
+> 	/* NOTREACHED: runprogram only returns on error. */
+> }
+> 
+> /*
+>  * Common code for cmd_prog and cmd_shell.
+>  *
+>  * Note that this does not wait for the subprogram to finish, but
+>  * returns immediately to the menu. This is usually not what you want,
+>  * so you should have it call your system-calls-assignment waitpid
+>  * code after forking.
+>  *
+>  * Also note that because the subprogram's thread uses the "args"
+>  * array and strings, until you do this a race condition exists
+>  * between that code and the menu input code.
+>  */
+> static
+> int
+> common_prog(int nargs, char **args)
+> {
+> 	int result;
+107,108c131,134
+< 	/* runprogram only returns on error. */
+< 	KASSERT(result != 0);
+---
+> #if OPT_SYNCHPROBS
+> 	kprintf("Warning: this probably won't work with a "
+> 		"synchronization-problems kernel.\n");
+> #endif
+110,112c136,164
+< 	kprintf("Running program %s failed: %s\n", args[0],
+< 		strerror(result));
+< 	thread_exit(_MKWAIT_EXIT(1));
+---
+> 	result = thread_fork(args[0] /* thread name */,
+> 			cmd_progthread /* thread function */,
+> 			args /* thread arg */, nargs /* thread arg */,
+> 			NULL);
+> 	if (result) {
+> 		kprintf("thread_fork failed: %s\n", strerror(result));
+> 		return result;
+> 	}
+> 
+> 	return 0;
+> }
+> 
+> /*
+>  * Command for running an arbitrary userlevel program.
+>  */
+> static
+> int
+> cmd_prog(int nargs, char **args)
+> {
+> 	if (nargs < 2) {
+> 		kprintf("Usage: p program [arguments]\n");
+> 		return EINVAL;
+> 	}
+> 
+> 	/* drop the leading "p" */
+> 	args++;
+> 	nargs--;
+> 
+> 	return common_prog(nargs, args);
+176,236d227
+<  * Common code for cmd_prog and cmd_shell.
+<  */
+< static
+< int
+< common_prog(int nargs, char **args)
+< {
+< 	int result;
+< 	pid_t childpid;
+< 	int status;
+< 
+< #if OPT_SYNCHPROBS
+< 	kprintf("Warning: this probably won't work with a "
+< 		"synchronization-problems kernel.\n");
+< #endif
+< 
+< 	result = thread_fork(args[0] /* thread name */,
+< 			cmd_progthread /* thread function */,
+< 			args /* thread arg */, nargs /* thread arg */,
+< 			&childpid);
+< 	if (result) {
+< 		kprintf("thread_fork failed: %s\n", strerror(result));
+< 		return result;
+< 	}
+< 
+< 	pid_wait(childpid, &status, 0, NULL);
+< 	if (WIFEXITED(status)) {
+< 		kprintf("Program (pid %d) exited with status %d\n",
+< 			childpid, WEXITSTATUS(status));
+< 	}
+< 	else if (WIFSIGNALED(status)) {
+< 		kprintf("Program (pid %d) exited with signal %d\n",
+< 			childpid, WTERMSIG(status));
+< 	}
+< 	else {
+< 		panic("Program (pid %d) gave strange exit status %d\n",
+< 		      childpid, status);
+< 	}
+< 
+< 	return 0;
+< }
+< 
+< /*
+<  * Command for running an arbitrary userlevel program.
+<  */
+< static
+< int
+< cmd_prog(int nargs, char **args)
+< {
+< 	if (nargs < 2) {
+< 		kprintf("Usage: p program [arguments]\n");
+< 		return EINVAL;
+< 	}
+< 
+< 	/* drop the leading "p" */
+< 	args++;
+< 	nargs--;
+< 
+< 	return common_prog(nargs, args);
+< }
+< 
+< /*
+341c332
+< 	thread_exit(_MKWAIT_EXIT(0));
+---
+> 	thread_exit();
+522d512
+< 	"[wt]  waitpid test                  ",	
+553d542
+< 	"[sp2] Bathroom                      ",
+554a544
+> 	"[sp2] Cat/mouse                     ",
+608d597
+< 	{ "sp2",	bathroom },
+609a599
+> 	{ "sp2",	catmouse },
+634,637d623
+< 	/* system call assignment tests */
+< 	/* For testing the wait implementation. */
+< 	{ "wt",		waittest },
+< 

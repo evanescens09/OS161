@@ -1,0 +1,65 @@
+##########################################    
+#     CSCC69H3 Summer 2012 Assignment 2  #
+#     Code Reading Questions		 	 #
+#     Geoff Lee - leegeof1               #
+#     Helena Yuhang - zhang138           #
+#     Kevin Chan - chanke25              #
+##########################################
+
+1) What happens to a thread when it exits (i.e., calls thread_exit() )? What about when it sleeps?
+The addess space is cleared and destroyed, interrupts are disabled, and switches away, leaving a zombie thread.
+When it sleeps, it yields the cpu to another process and goes to sleep on the wait channel and the channel is locked.
+Calling wakeup on the channel will make the thread runnable again, and will be unlocked.
+
+2) What function(s) handle(s) a context switch?
+The functions thread_switch and switchframe_switch handle a context switch.
+
+3) What events can directly cause a context switch?
+The events that can directly cause a context switch are: when threads exit, software exceptions, and hardware interrupts.
+
+4) How many thread states are there? What are they?
+There are 4 thread states: RUN, READY, SLEEP, and ZOMBIE.
+
+5) What does it mean to turn interrupts off? How is this accomplished? 
+Why is it important to turn off interrupts in the thread subsystem code?
+When we turn interrupts off, hardware interrupts such as IO devices don't interrupt the currently running code.
+This is accomplished by calling splhigh(). It is important to turn off interrupts the thread subsystem code 
+because they shouldn't be interrupted while they create/delete/switch threads.
+
+6) What happens when a thread wakes up another thread? How does a sleeping thread get to run again?
+The awoken thread is put in the runnable queue by wchan_wakeone or wchan_wakeall given the address of a sleeping thread.
+
+7) When and why is the "condition variable" in the pidinfo struct used?
+The condition variable pi_exited is used when a thread exits in order to determine when the pidinfo struct can be freed.
+
+8) Why do you need to hold a lock before waiting on a "condition variable"?
+***IDERNOWHY***
+
+9) What are the ELF magic numbers?
+ELF magic numbers are made of sunshine and are used to uniquely identify filetypes without searching through complicated 
+file structures to determine the file type.  
+ELFMAG0 - 0x7f
+ELFMAG1 - 'E'
+ELFMAG2 - 'L'
+ELFMAG3 - 'F'
+
+10) What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
+UIO_USERISPACE is used to specify a data region user process code, and UIO_USERSPACE is user process data, where 
+these flags are set to determine that a character is to be copied to a user address.  (Although, in uio.c, they
+seem to do exactly the same thing) One should use UIO_SYSSPACE when we wish to copy a character to a kernel address.
+
+11) Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() 
+(i.e., where does the memory read actually go)?
+***IDERNOWHY***
+
+12) In loadexec() and runprogram(), why is it important to call vfs_close() before going to usermode?
+Because is the elf failed to load on line 92 of runprogram.c, the executable has already been loaded into t_addrspace,
+so we need to call vfs_close() to prevent memory leaks.
+
+13) What function forces the processor to switch into usermode? Is this function machine dependent?
+The function mips_usermode in trap.c forces the processor to switch into usermode, where asm_usermode in exception-mips1.S
+actually does it.  This function is machine dependent because it sets up specific registers that put the CPU in usermode.
+
+14) In what file are copyin and copyout defined? memmove? Why can't copyin and copyout be implemented as simply as memmove?
+copyin and copyout are defined in kern/vm/copyinout.c, and memmove is defined in /common/libc/string/memmove.c.
+***IDERNOWHY***
