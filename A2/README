@@ -1,5 +1,6 @@
 CSCC69 Assignment 2
 Assignment specification:
+
 Exercises in extending OS/161's thread system and implementing several system calls to allow OS/161 to support more interesting user programs. 
 For this assignment, we had to become familiar with the OS/161 thread code.  The thread system provides interrupts, control functions, and semaphores. 
 Additionally we will be extending the thread system to provide additional, higher-level functions found in most thread libraries and will use that functionality to implement the process management system calls getpid, waitpid, fork.
