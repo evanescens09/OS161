@@ -877,7 +877,6 @@ int thread_join(pid_t pid, int *status, int flags)
 			kprintf("thread_join failed: %s\n", strerror(value));
 			return value;
 		}
-
 	}
 	return 0;
 }

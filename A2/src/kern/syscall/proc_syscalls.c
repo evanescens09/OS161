@@ -58,10 +58,7 @@ sys__exit(int status)
 int
 sys_getpid(pid_t *retval)
 {
-	(void)retval;
-	
-	// Implement me.
-	return EUNIMP;
+	return currthread->t_pid;
 }
 
 /*

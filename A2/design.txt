@@ -1,0 +1,66 @@
+#############################################
+# CSCC69S12 - Assignment 2 Design Document  #
+#-----------------group06-------------------#
+#           Kevin Chan chanke25             #
+#            Geoff Lee leegeof1             #
+#          Helena Yuhang zhang138           #
+#############################################
+
+It is apparent from the assignment specification that instead of doing the grunt of the work in the functions
+thread_join and thread_detach, we will just have thread_join and thread_detach call on the pid functions in pid.c.
+
+High Level Descriptions of pid function implementations:
+
+int pid_join(pid_t theirpid, int *status, int flags)
+----------------------------------------------------
+For pid_join we need to be able to return the exit status of the thread associated with the targetpid as soon as it
+is available to run.  If the thread hasn't exited, curthread will wait unless the flag WNOHANG is sent. (From description)
+The main thing here is to check for all possible errors associated with each scenario described from the description.
+From the pid_info struct, we retrieve the related information we need with pid_get to determine when to acquire and
+release locks.
+
+int pid_detach(pid_t childpid)
+------------------------------
+For pid_detach, we need to be able to detach the children of the current thread, so that it cant be freed as soon as it exits.
+(From description) Here we need to add check statements for all possible errors associated with each scenario, similarily to pid_join.
+Additionally, the information we need is simply determined from accessing the pid_info struct, and since we will need to 
+access the critical section, we will need to acquire and release locks.  We use lock_acquire() and lock_release() to acquire
+and release locks, as well as pi_drop() to remove the pid_info structure from the process table and free it, which is okay since 
+we've ensured that the process has already been exited and waited for.  On success, or if all children are detached,
+pid_detach returns a 0; otherwise we return an appropriate error code.
+
+
+void pid_exit(int status)
+-------------------------
+For pid_exit, we set the exit status of the current thread, detaches children, and wakes any thread waiting for this current
+thread to exit.  Also frees the PID and exit status if the thread has been detached and must be called only if the thread
+has a pid assigned. (From description) Mainly what we need to do in pid_exit is detach all the children, wake up the parent,
+and indicate to waiting threads that this thread has exited.  For setting the exit status, we will need to set pi_exitstatus
+to the given status argument and set pi_exited to 1 to indicate that the thread has exited.  As with pid_join and pid_detach,
+we will be using lock_acquire() and lock_release() to acquire and release locks, as well as pi_get(), pi_drop(), and cv_broadcast()
+which to broadcast to waiting threads to wake up.
+
+int thread_join(pid_t pid, int *status, int flags)
+---------------------------------------
+For thread_join, as previously described, will simply call pid_join, also checking for the WNOHANG flag if set will simply return 0 and currthread will not wait.
+
+int thread_detach(pid_t pid)
+----------------------------
+Similarily for thread_detach, we simply call upon pid_detach.
+
+int sys_getpid(pid_t *retval)
+-----------------------------
+For sys_getpid, we simply return the pid by accessing the current thread and getting the pid 't_pid'.
+
+int sys_waitpid(pid_t pid, userptr_t retstatus, int flags, pid_t *retval)
+-------------------------------------------------------------------------
+For sys_waitpid, we wait for the process specified by pid to exit, and return an encoded exit status in the
+integer pointed to by status. If that process has exited already, waitpid returns immediately. 
+If that process does not exist, waitpid fails. (From Description) 
+
+int sys_fork(struct trapframe *tf, pid_t *retval)
+-------------------------------------------------
+For sys_fork, it duplicates the currently running process. The two copies are identical, except that
+one (the "new" one, or "child"), has a new, unique process id, and in the other (the "parent") the process id is unchanged. (From Description)
+
+

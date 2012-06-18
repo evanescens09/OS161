@@ -319,13 +319,13 @@ pid_detach(pid_t childpid)
 	my_pi = pi_get(childpid);
 
 	// No thread found with the given pid
-  	if(my_pi == NULL) lock_release(pidlock);
-
+  	if(my_pi == NULL){ lock_release(pidlock); DEBUG(DB_THREADS, "No thread found %d\n", my_pi->pi_pid); }
+	
 	// The caller isn't the parent of pid!
-	else if(curthread->t_pid != my_pi->pi_ppid) lock_release(pidlock);
+	else if(curthread->t_pid != my_pi->pi_ppid){ lock_release(pidlock); DEBUG(DB_THREADS, "Caller is not parent of pid %d\n", my_pi->pi_pid); }
 
 	// The thread is already detached.
-	else if(my_pi->pi_ppid == INVALID_PID) lock_release(pidlock);
+	else if(my_pi->pi_ppid == INVALID_PID){ lock_release(pidlock); DEBUG(DB_THREADS, "Thread is already detached %d\n", my_pi->pi_pid); }
 
 	my_pi->pi_ppid = INVALID_PID;
 	lock_release(pidlock);
@@ -347,9 +347,8 @@ pid_exit(int status)
 	KASSERT(my_pi != NULL);
 	my_pi->pi_exitstatus = status;
 	my_pi->pi_exited = true;
-
-	for(i
-
+	
+	//Still need to disown children
 	lock_release(pidlock);
 }
 
