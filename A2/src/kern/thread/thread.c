@@ -838,8 +838,10 @@ thread_exit(int exitcode)
 	/* Check the stack guard band. */
 	thread_checkstack(cur);
 
+	pid_exit(exitcode); //A1 Save exit status
+
 	/* Interrupts off on this processor */
-    splhigh();
+    	splhigh();
 	thread_switch(S_ZOMBIE, NULL);
 	panic("The zombie walks!\n");
 }
@@ -851,6 +853,52 @@ void
 thread_yield(void)
 {
 	thread_switch(S_READY, NULL);
+}
+
+/*
+ * thread_join suspends the execution of the calling thread until the thread identified by 
+ * pid terminates by calling thread_exit. If status is not NULL, the exit status of thread 
+ * pid is stored in the location pointed to by status. The thread pid must be in the joinable state; 
+ * it must not have been detached using thread_detach.
+ * 
+ * When a joinable thread terminates, its thread descriptor (thread id) and exit status must be retained 
+ * until another thread performs thread_join (or thread_detach) on it. Only the creator (parent) of a thread 
+ * is allowed to call thread_join on it. Anything else returns an error. 
+ *
+ * Return Value: On success the exit status of thread pid is stored in the location pointed to by status, and 0 is returned. On error, a non-zero error code is returned.
+*/
+int thread_join(pid_t pid, int *status, int flags)
+{
+	int value;
+	value = pid_join(pid, status, flags);
+	if(value){
+		if(flags == WNOHANG) return 0;
+		else{
+			kprintf("thread_join failed: %s\n", strerror(value));
+			return value;
+		}
+
+	}
+	return 0;
+}
+
+/* thread_detach puts the thread pid in the detached state. This means that the thread descriptor and 
+ * exit status can be discarded immediately when pid terminates. If pid has already exited when thread_detach 
+ * is called, the thread descriptor should be reclaimed as part of handling thread_detach.
+ *
+ * When a thread exits, thread_detach should be called on all of its children.
+ *
+ * Return Value: On success, 0 is returned. On error, a non-zero error code is returned.
+*/
+int thread_detach(pid_t pid)
+{
+	int value;
+	value = pid_detach(pid);
+	if(value){
+		kprintf("thread_detach failed: %s\n", strerror(value));
+		return value;
+	}
+	return 0;
 }
 
 ////////////////////////////////////////////////////////////

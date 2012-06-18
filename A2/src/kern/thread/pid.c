@@ -314,10 +314,21 @@ pid_unalloc(pid_t theirpid)
 void
 pid_detach(pid_t childpid)
 {
-	(void)childpid;
-	
-	// Implement me
-	KASSERT(false);
+	struct pidinfo* my_pi;
+	lock_acquire(pidlock);
+	my_pi = pi_get(childpid);
+
+	// No thread found with the given pid
+  	if(my_pi == NULL) lock_release(pidlock);
+
+	// The caller isn't the parent of pid!
+	else if(curthread->t_pid != my_pi->pi_ppid) lock_release(pidlock);
+
+	// The thread is already detached.
+	else if(my_pi->pi_ppid == INVALID_PID) lock_release(pidlock);
+
+	my_pi->pi_ppid = INVALID_PID;
+	lock_release(pidlock);
 }
 
 /*
@@ -335,6 +346,9 @@ pid_exit(int status)
 	my_pi = pi_get(curthread->t_pid);
 	KASSERT(my_pi != NULL);
 	my_pi->pi_exitstatus = status;
+	my_pi->pi_exited = true;
+
+	for(i
 
 	lock_release(pidlock);
 }
@@ -348,11 +362,41 @@ pid_exit(int status)
 int
 pid_join(pid_t theirpid, int *status, int flags)
 {
-	(void)theirpid;
-	(void)status;
-	(void)flags;
-	
-	// Implement me.
-	KASSERT(false);
-	return EUNIMP;
+	lock_acquire(pidlock);
+	struct pidinfo* p_info = pi_get(theirpid);
+
+	// Check case for thread not found by theirpid
+	if(p_info == NULL){
+		return ESRCH;
+	}
+	// Case where the thread has been detached
+	else if(p_info->pi_ppid == INVALID_PID){
+		return EINVAL;
+	}
+	// Case where the caller of pid_join isn't the parent of theirpid
+	else if(curthread->t_pid != p_info->pi_ppid){
+		return EINVAL;
+	}
+	// Case where theirpid is referring to the calling thread
+	else if(curthread->t_pid == p_info->pi_pid){
+		return EINVAL;
+	}	
+
+	if((p_info->pi_exited == false) && (flags == WNOHANG)){
+		lock_release(pidlock);
+		return 0;
+	}
+	else{
+		if(p_info->pi_exited == false){
+			DEBUG(DB_THREADS, "WAIT %d\n", p_info->pi_pid);
+			cv_wait(p_info->pi_cv, pidlock);
+			KASSERT(p_info->pi_exited == true);
+		}		
+
+		if(status != NULL){
+			*status = p_info->pi_exitstatus;
+		}
+		lock_release(pidlock);
+  		return 0;
+	}	
 }
