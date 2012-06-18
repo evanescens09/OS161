@@ -57,10 +57,11 @@ int sys_waitpid(pid_t pid, userptr_t retstatus, int flags, pid_t *retval)
 For sys_waitpid, we wait for the process specified by pid to exit, and return an encoded exit status in the
 integer pointed to by status. If that process has exited already, waitpid returns immediately. 
 If that process does not exist, waitpid fails. (From Description) 
+[Still need add more info to this description]
 
 int sys_fork(struct trapframe *tf, pid_t *retval)
 -------------------------------------------------
 For sys_fork, it duplicates the currently running process. The two copies are identical, except that
 one (the "new" one, or "child"), has a new, unique process id, and in the other (the "parent") the process id is unchanged. (From Description)
-
+[Still need add more info to this description]
 
